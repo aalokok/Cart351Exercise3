@@ -93,8 +93,8 @@
     </style>
 </head>
 <body>
-<div id="welcomeScreen">  ACTIVITY 2:
-    WELL-BEING TRACKER</div>
+<div id="welcomeScreen">  ACTIVITY 3:
+   INFINITE COLLABORATIVE ART </div>
 <canvas id="artCanvas"></canvas>
 
 <div id="messageBox">
@@ -136,6 +136,10 @@
     let lastX = 0;
     let lastY = 0;
 
+    // Welcome screen
+    document.getElementById('welcomeScreen').addEventListener('click', function() {
+        this.style.display = 'none';
+    });
     // Pastel colors for background
     const pastelColors = [
         '#FFD1DC', '#FFEBCD', '#E6E6FA', '#98FB98',
