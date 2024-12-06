@@ -4,7 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Infinite Collaborative Art</title>
+
     <style>
+        #welcomeScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #1a1a1a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 200px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bolder;
+            z-index: 2000;
+            cursor: pointer;
+        }
         body, html {
             margin: 0;
             padding: 0;
@@ -70,6 +88,8 @@
     </style>
 </head>
 <body>
+<div id="welcomeScreen">  ACTIVITY 2:
+    WELL-BEING TRACKER</div>
 <canvas id="artCanvas"></canvas>
 
 <div id="messageBox">
