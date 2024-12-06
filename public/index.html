@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Collaborative Art</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: monospace;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #messageBox {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            width: 250px;
+            z-index: 1000;
+        }
+        #messageInput {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #sendMessage {
+            margin-top: 8px;
+            padding: 8px;
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        #statsDisplay {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+        }
+        .previous-message {
+            font-style: italic;
+            margin-bottom: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+<canvas id="artCanvas"></canvas>
+
+<div id="messageBox">
+    <div class="previous-message">Previous note: <span id="prevMessage">Loading...</span></div>
+    <input type="text" id="messageInput" placeholder="Leave a note for next visitor..." maxlength="100">
+    <button id="sendMessage">Leave Note</button>
+</div>
+
+<div id="controls">
+    Zoom: <span id="zoomLevel">100%</span><br>
+    Scroll to zoom, drag to pan
+</div>
+
+<div id="statsDisplay">
+    Total Shapes: <span id="shapeCounter">0</span>
+</div>
+
+<script>
+    const canvas = document.getElementById('artCanvas');
+    const ctx = canvas.getContext('2d');
+    const messageInput = document.getElementById('messageInput');
+    const sendMessage = document.getElementById('sendMessage');
+    const prevMessage = document.getElementById('prevMessage');
+    const zoomLevelDisplay = document.getElementById('zoomLevel');
+    const shapeCounter = document.getElementById('shapeCounter');
+
+    // Canvas setup
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    // Transformation state
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let shapes = [];
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Pastel colors for background
+    const pastelColors = [
+        '#FFD1DC', '#FFEBCD', '#E6E6FA', '#98FB98',
+        '#87CEFA', '#FFF5EE', '#F0FFF0', '#F0F8FF'
+    ];
+    let currentBackground = pastelColors[0];
+
+    // Shape and color utilities
+    const getGreyscaleColor = () => {
+        const shade = Math.floor(Math.random() * 256);
+        return `rgb(${shade}, ${shade}, ${shade})`;
+    };
+
+    const getPastelColor = () => {
+        return pastelColors[Math.floor(Math.random() * pastelColors.length)];
+    };
+
+    // Drawing functions
+    function drawShape(shape) {
+        ctx.fillStyle = shape.color;
+        ctx.beginPath();
+
+        switch(shape.type) {
+            case 'circle':
+                ctx.arc(shape.x, shape.y, shape.size/2, 0, Math.PI * 2);
+                break;
+            case 'square':
+                ctx.rect(shape.x - shape.size/2, shape.y - shape.size/2, shape.size, shape.size);
+                break;
+            case 'triangle':
+                ctx.moveTo(shape.x, shape.y - shape.size/2);
+                ctx.lineTo(shape.x - shape.size/2, shape.y + shape.size/2);
+                ctx.lineTo(shape.x + shape.size/2, shape.y + shape.size/2);
+                break;
+        }
+        ctx.fill();
+    }
+
+    function redraw() {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = currentBackground;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(width/2, height/2);
+        ctx.scale(scale, scale);
+        ctx.translate(-width/2 + panX, -height/2 + panY);
+
+        shapes.forEach(drawShape);
+        ctx.restore();
+    }
+
+    // Event handlers
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const scaleAmount = e.deltaY > 0 ? 0.9 : 1.1;
+        scale *= scaleAmount;
+        scale = Math.min(Math.max(0.1, scale), 5.0);
+        zoomLevelDisplay.textContent = `${Math.round(scale * 100)}%`;
+        redraw();
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            panX += (e.clientX - lastX) / scale;
+            panY += (e.clientY - lastY) / scale;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            redraw();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    canvas.addEventListener('click', async (e) => {
+        if (lastX === e.clientX && lastY === e.clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left - width/2) / scale + width/2 - panX;
+            const y = (e.clientY - rect.top - height/2) / scale + height/2 - panY;
+
+            const shapeTypes = ['circle', 'square', 'triangle'];
+            const newShape = {
+                type: shapeTypes[Math.floor(Math.random() * shapeTypes.length)],
+                x: x,
+                y: y,
+                size: Math.random() * 50 + 20,
+                color: getGreyscaleColor()
+            };
+
+            shapes.push(newShape);
+            currentBackground = getPastelColor();
+            redraw();
+
+            try {
+                const response = await fetch('/api/art-clicks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        shapeType: newShape.type,
+                        color: newShape.color,
+                        x: x,
+                        y: y,
+                        size: newShape.size
+                    })
+                });
+                const data = await response.json();
+                shapeCounter.textContent = data.totalClicks;
+            } catch (error) {
+                console.error('Error saving shape:', error);
+            }
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        redraw();
+    });
+
+    // Note functionality
+    async function fetchLatestNote() {
+        try {
+            const response = await fetch('/api/latest-note');
+            const data = await response.json();
+            prevMessage.textContent = data.message;
+        } catch (error) {
+            console.error('Error fetching note:', error);
+        }
+    }
+
+    async function fetchShapes() {
+        try {
+            const response = await fetch('/api/art-clicks');
+            const data = await response.json();
+            shapes = data.clicks.map(click => ({
+                type: click.shapeType,
+                x: click.x,
+                y: click.y,
+                size: click.size || 30,
+                color: click.color
+            }));
+            shapeCounter.textContent = data.totalClicks;
+            redraw();
+        } catch (error) {
+            console.error('Error fetching shapes:', error);
+        }
+    }
+
+    sendMessage.addEventListener('click', async () => {
+        const message = messageInput.value.trim();
+        if (message) {
+            try {
+                await fetch('/api/leave-note', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                messageInput.value = '';
+                fetchLatestNote();
+            } catch (error) {
+                console.error('Error sending note:', error);
+            }
+        }
+    });
+
+    // Initial setup
+    fetchLatestNote();
+    fetchShapes();
+    redraw();
+
+    // Periodic refresh
+    setInterval(fetchShapes, 30000);
+    setInterval(fetchLatestNote, 30000);
+</script>
+</body>
+</html>
